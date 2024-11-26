@@ -11,6 +11,7 @@ cursor terminal browser for ndarrays.
 =head1 SYNOPSIS
 
  use PDL::IO::Browser;
+ browse sequence 3,2;
 
 =cut
 

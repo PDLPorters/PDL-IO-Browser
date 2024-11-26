@@ -2,15 +2,9 @@ use strict;
 use warnings;
 use ExtUtils::MakeMaker;
 use File::Spec;
-eval { require Devel::CheckLib; Devel::CheckLib->import; };
-eval { require File::Which; };
-
-my @pack = (["browser.pd", qw(Browser PDL::IO::Browser)]);
-
-my %hash = pdlpp_stdargs_int(@pack);
-
-$hash{'OBJECT'} .= ' browse$(OBJ_EXT)';
-$hash{'clean'}{FILES} .= ' browse$(OBJ_EXT) browse$(EXE_EXT) Browser.c Browser.pm Browser.xs Browser$(OBJ_EXT)';
+use PDL::Core::Dev;
+use Devel::CheckLib;
+use File::Which;
 
 # Here we check for working curses/ncurses
 # and the corresponding "curses.h" and "ncurses/curses.h"
@@ -42,7 +36,6 @@ sub conf_via_ncurses_config {
    # NOTE the ncurses*-config executables are shell scripts so `sh` is
    # required.
    return () unless File::Which::which('sh');
-
    my @nc_configs = qw(
       ncurses6-config
       ncursesw6-config
@@ -69,7 +62,6 @@ sub conf_via_ncurses_config {
 
 sub conf_via_checklib {
    return () unless $found_header;
-
    my $libstring;
    foreach my $libr ( qw( curses ncurses ncursesw ) ) {
       if (eval { check_lib(lib=>$libr) }) {
@@ -77,7 +69,6 @@ sub conf_via_checklib {
          last;
       }
    }
-
    if( defined $libstring ) {
       return (
          header => $found_header,
@@ -85,25 +76,45 @@ sub conf_via_checklib {
          libs   => $libstring,
       );
    }
-
    return ();
 }
 
-my %conf_data;
-%conf_data = conf_via_ncurses_config();
+my %conf_data = conf_via_ncurses_config();
 %conf_data = conf_via_checklib() unless %conf_data;
-if( %conf_data ) {
-   $hash{DEFINE} .= ' -DCURSES=' . '\\"' . $conf_data{header} . '\\"';
-   $hash{INC} .= ' ' . $conf_data{inc} if $conf_data{inc};
-   push @{$hash{LIBS}} , $conf_data{libs};
-}
+die "Curses capable library not found" if !%conf_data;
+
+my @pack = (["browser.pd", qw(Browser PDL::IO::Browser)]);
+my %hash = pdlpp_stdargs(@pack);
+$hash{CONFIGURE_REQUIRES}{'ExtUtils::MakeMaker'} = '7.14';
+$hash{CONFIGURE_REQUIRES}{'PDL::Core::Dev'} = 0;
+$hash{CONFIGURE_REQUIRES}{'Devel::CheckLib'} = 0;
+$hash{CONFIGURE_REQUIRES}{'File::Which'} = 0;
+$hash{PREREQ_PM}{'PDL'} = '2.095';
+$hash{OBJECT} .= ' browse$(OBJ_EXT)';
+$hash{clean}{FILES} .= ' browse$(OBJ_EXT) browse$(EXE_EXT) Browser.c Browser.pm Browser.xs Browser$(OBJ_EXT)';
+$hash{DEFINE} .= ' -DCURSES=' . '\\"' . $conf_data{header} . '\\"';
+$hash{INC} .= ' ' . $conf_data{inc} if $conf_data{inc};
+$hash{LIBS}[0] .= $conf_data{libs};
 
 # Add genpp rule
-undef &MY::postamble; # suppress warning
-*MY::postamble = sub { pdlpp_postamble_int(@pack); };
+sub MY::postamble { pdlpp_postamble(@pack); }
 
-if ( %conf_data ) {
-   WriteMakefile(%hash);
-} else {
-   write_dummy_make("Curses capable library not found, not building PDL::IO::Browser");
-}
+WriteMakefile(
+  AUTHOR => 'PerlDL Developers <pdl-general@lists.sourceforge.net>',
+  LICENSE => 'perl',
+  MIN_PERL_VERSION => '5.016',
+  META_MERGE => {
+    "meta-spec" => { version => 2 },
+    resources => {
+      homepage => 'http://pdl.perl.org/',
+      bugtracker  => {web=>'https://github.com/PDLPorters/PDL-IO-Browser/issues'},
+      repository  => {
+        url => 'git://github.com/PDLPorters/PDL-IO-Browser.git',
+        type => 'git',
+        web => 'https://github.com/PDLPorters/PDL-IO-Browser',
+      },
+      x_IRC => 'irc://irc.perl.org/#pdl',
+    },
+  },
+  %hash,
+);

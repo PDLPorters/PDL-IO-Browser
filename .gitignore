@@ -1,3 +1,11 @@
 Browser.c
 Browser.pm
 Browser.xs
+*.o
+*.bs
+Makefile
+Makefile.old
+MANIFEST.bak
+blib/
+MYMETA.yml
+MYMETA.json
