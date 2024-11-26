@@ -1,3 +1,6 @@
+our $VERSION = '0.001';
+pp_setversion($VERSION);
+
 pp_addpm({At=>'Top'},<<'EOD');
 
 =head1 NAME
